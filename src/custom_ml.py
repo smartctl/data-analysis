@@ -28,6 +28,8 @@ class CustomML:
     def __init__(self, X_data: pd.DataFrame, random_state=42, split_size=0.25) -> None:
         self.X_data=X_data.copy().drop(['cluster_magic_split'], axis=1)                     
         self.encode_y()
+        # to store per-custer data
+        self.X_cluster = self.define_X_cluster()
         self.random_state=random_state
         self.split_size=split_size
 
@@ -48,36 +50,69 @@ class CustomML:
         self.X_data.loc[self.X_data['y_label'] == "red",    ['y_label']]=1
         self.X_data.loc[self.X_data['y_label'] == "yellow", ['y_label']]=2
 
+    def define_X_cluster(self):
+        X_cluster = {
+            'compact':{
+                'X_full':None,
+                'X':None, 
+                'y': None, 
+                'X_train': None, 
+                'y_train': None, 
+                'X_test': None, 
+                'y_test': None
+            },
+            'mno':{
+                'X_full':None,
+                'X':None, 
+                'y': None, 
+                'X_train': None, 
+                'y_train': None, 
+                'X_test': None, 
+                'y_test': None
+            }
+        } 
+        return X_cluster
+
     def split_by_cluster_type(self):
         """
         Create an dataset per cluster type
         """
-        self.X_data_compact = self.X_data[self.X_data['source'] == 'compact']
-        self.X_data_mno = self.X_data[self.X_data['source'] == 'mno']
+        self.X_cluster['compact']['X_full'] = self.X_data[self.X_data['source'] == 'compact']
+        self.X_cluster['mno']['X_full']     = self.X_data[self.X_data['source'] == 'mno']
 
-        print(f"Compact cluster {self.X_data_compact.shape}"+
-              f"\nMultinode (mno) {self.X_data_mno.shape}")
+        print(f"Compact cluster {self.X_cluster['compact']['X_full'].shape}"+
+              f"\nMultinode (mno) {self.X_cluster['mno']['X_full'].shape}")
 
     def split_xy_by_cluster_type(self):
         """
-        Create an X and y per cluster type
-            X_compact, y_compact
-            X_mno, y_mno
+        Create an X and y per cluster type and the corresponding train_test_split
         """
-        self.split_by_cluster_type()
+        if self.X_cluster['compact']['X_full'] is None:
+            self.split_by_cluster_type()
 
-        self.X_compact = self.X_data_compact.drop(['source','y_label'], axis=1)
-        self.y_compact = self.X_data_compact['y_label']
+        self.X_cluster['compact']['X'] = self.X_cluster['compact']['X_full'].drop(['source','y_label'], axis=1)
+        self.X_cluster['compact']['y'] = self.X_cluster['compact']['X_full']['y_label']
 
-        self.X_mno = self.X_data_mno.drop(['source','y_label'], axis=1)
-        self.y_mno = self.X_data_mno['y_label']
+        self.X_cluster['mno']['X'] = self.X_cluster['mno']['X_full'].drop(['source','y_label'], axis=1)
+        self.X_cluster['mno']['y'] = self.X_cluster['mno']['X_full']['y_label']
+
+        for cluster in self.X_cluster.keys():
+            X_train, X_test, y_train, y_test = train_test_split(self.X_cluster[cluster]['X'], 
+                                                                self.X_cluster[cluster]['y'], 
+                                                                test_size=self.split_size, 
+                                                                random_state=self.random_state)
+            self.X_cluster[cluster]['X_train'] = X_train
+            self.X_cluster[cluster]['X_test']  = X_test
+            self.X_cluster[cluster]['y_train'] = y_train
+            self.X_cluster[cluster]['y_test']  = y_test
+
 
     def split_xy(self):
         """
         Create a X_full and y_full
         """
-        self.X_full = self.X_data.drop(['source','y_label'], axis=1)
-        self.y_full = self.X_data['y_label']
+        self.X = self.X_data.drop(['source','y_label'], axis=1)
+        self.y = self.X_data['y_label']
 
     def get_dataset(self, dataset_type="full"):
         """
@@ -92,13 +127,18 @@ class CustomML:
             case "full":
                 df=self.X_data.copy()
             case "compact":
-                df=self.X_data_compact.copy()
+                df=self.X_cluster['compact']['X'].copy()
             case "mno":
-                df=self.X_data_mno.copy()
+                df=self.X_cluster['compact']['mno'].copy()
             case _:
                 print(f"Invalid dataset_type")
                 return None
         return df
+    
+    def get_xy_by_cluster_type(self):
+        if self.X_cluster['compact']['X'] is None:
+            self.split_xy_by_cluster_type()
+        return self.X_cluster
 
     def get_xy_logreg(self, dataset_type="full"):
         """
@@ -202,3 +242,4 @@ class CustomML:
             score_pair[scaler1+","+scaler2]=pipeline.score(X_test, y_test)
         
         pprint.pprint(score_pair)
+
