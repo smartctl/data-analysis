@@ -113,30 +113,3 @@ class DataTransformation:
         self.logger.debug(f"[{inspect.stack()[0][3]}] Ending cleaning dataset. Final shape {df.shape}")
         return df
 
-
-    # dummy function for tests
-    def extend_with_permutations_control_plane(self, df):
-        """
-        Shuffle control plane columns to increase diversty 
-        """
-        self.logger.debug(f"[{inspect.stack()[0][3]}] Starting shuffling control plane columns.")
-
-        print("NOT IMPLEMENTED")
-        pass
-
-        self.logger.debug(f"[{inspect.stack()[0][3]}] Completing shuffling control plane columns.")
-
-
-
-
-
-
-
-    # dummy function for tests
-    def dummy(self):
-        """
-        Dummy template test for functions
-        """
-        self.logger.debug(f"[{inspect.stack()[0][3]}] Starting doing nothing.")
-        print(f"This is a dummy function to test the class is working")
-        self.logger.debug(f"[{inspect.stack()[0][3]}] Ending doing nothing.")
