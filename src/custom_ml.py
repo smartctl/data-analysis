@@ -1,16 +1,31 @@
 # general libraries
-import pprint
+
 # common data manipulation libraries
 import pandas as pd
 import numpy as np
 
+import warnings
+# to suppress numpy warnings
+warnings.filterwarnings('ignore')
+
 # loading common ML libraries and setting defaults
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    f1_score,
+    accuracy_score,
+    balanced_accuracy_score,
+    average_precision_score,
+    precision_score,
+    recall_score,
+    brier_score_loss,
+    mean_squared_error
+)
 
 from sklearn.preprocessing import (
     MaxAbsScaler,
@@ -112,7 +127,10 @@ class CustomML:
         Create a X_full and y_full
         """
         self.X = self.X_data.drop(['source','y_label'], axis=1)
-        self.y = self.X_data['y_label']
+        self.y = self.X_data['y_label'].astype('uint32')
+
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+            self.X, self.y, test_size=self.split_size, random_state=self.random_state)
 
     def get_dataset(self, dataset_type="full"):
         """
@@ -222,8 +240,9 @@ class CustomML:
 
         return ct
 
-    def pipeline_transformer_logreg(self, X_train, y_train, X_test, y_test, scaler_pairs=[('standard','standard')]):
+    def pipeline_transformer_logreg(self, X_train, y_train, X_test, y_test, scaler_pairs=[('standard','standard')], silent=False):
         """
+
         """
         score_pair={}
        # LogisticRegression instance with settings
@@ -241,5 +260,42 @@ class CustomML:
             pipeline.fit(X_train, y_train)
             score_pair[scaler1+","+scaler2]=pipeline.score(X_test, y_test)
         
-        pprint.pprint(score_pair)
+        if not silent:
+            for s in score_pair.keys():
+                print(f"{s:>25}\t{score_pair[s]}")
 
+        return score_pair
+
+    def get_model_scores(self, y_truth, y_pred, silent=False):
+        score_card={}
+        score_card['accuracy_score']=accuracy_score(y_truth, y_pred)
+        score_card['balanced_accuracy_score']=balanced_accuracy_score(y_truth, y_pred)
+        score_card['f1_score']=f1_score(y_truth, y_pred, average='macro')
+        score_card['precision_score']=precision_score(y_truth, y_pred, average='macro')
+        score_card['recall_score']=recall_score(y_truth, y_pred, average='macro')
+        score_card['mean_squared_error']=mean_squared_error(y_truth, y_pred, squared=True) 
+
+        if not silent:
+            for s in score_card.keys():
+                print(f"{s:>25}\t{score_card[s]}")
+        
+        return score_card
+
+    def show_confusion_matrix(self, y_truth, y_pred, title="Confusion Matrix for dataset", logreg=False):
+        """
+        Simple wrapper for ConfusionMatrix function
+        """
+        if logreg:
+            class_names=['green','red']
+        else:
+            class_names=['green','red','yellow']
+        
+        disp = ConfusionMatrixDisplay.from_predictions(
+            y_truth,
+            y_pred,
+            display_labels=class_names,
+            cmap=plt.cm.Blues,
+        )
+        disp.ax_.set_title(title)
+        # print(disp.confusion_matrix)
+        plt.show()
