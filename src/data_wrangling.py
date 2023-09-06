@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime
 import os, sys, re, time, inspect
+from itertools import permutations, combinations
 
 class DataWrangle:
     def __init__(self, mapping_set, y_map_set, logger, dstdir="data/wrangle"):
@@ -156,6 +157,34 @@ class DataWrangle:
 
         self.logger.debug(f"[{inspect.stack()[0][3]}] Completed node ordering verification.")
 
+    def randomize_nodes(self):
+        """
+        Node name maps to roles:
+            nodes 1-3: master, control_plane, worker (optional)
+            nodes 4-6: worker
+        """
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Starting node combination.")
+
+        # for item in self.df.columns:
+        #     print(item)
+
+        role_control_plane=['node1', 'node2', 'node3']
+        role_other=['node4','node5','node6']
+
+        df_combined = self.df.copy()
+        for c1,c2 in combinations(role_control_plane, 2):
+            self.swap_nodes(c1, c2)
+            self.logger.debug(f"[swap_nodes:control-plane] {c1} {c2}")
+            for w1,w2 in combinations(role_other, 2):
+                self.swap_nodes(w1, w2)
+                df_combined=pd.concat([df_combined,self.df], ignore_index=True)
+                self.logger.debug(f"[swap_nodes:workers] {w1} {w2}")
+
+        df_combined.reset_index(drop=True, inplace=True)
+        self.df = df_combined.copy()
+
+        self.logger.debug(f"[{inspect.stack()[0][3]}] Completed node combination.")
+
     def feature_name_normalization(self):
         """
         Transform feature name into a canonical string based on mapping
@@ -231,7 +260,7 @@ class DataWrangle:
             self.df.rename(columns = rename_map, inplace = True)
             self.logger.debug(f"[{inspect.stack()[0][3]}] Completing feature name normalization.")
 
-    def load_dataset(self, fname: str):
+    def load_dataset(self, fname: str, randomize_nodes=False):
         """
         load and clean raw dataset by:
             filling missing values with 0
@@ -248,6 +277,8 @@ class DataWrangle:
         self.set_dtypes()
         if not 'source' in self.df.columns:
             self.df['source']=str(fname).split('/')[-1] # embed source file name as attribute
+        if randomize_nodes:
+            self.randomize_nodes()
         self.logger.debug(f"[{inspect.stack()[0][3]}] Processed {fname} with shape {self.df.shape}")
         self.logger.debug(f"[{inspect.stack()[0][3]}] Dataset loaded.\n{self.df.head()}")
 
