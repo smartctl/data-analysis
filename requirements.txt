@@ -4,3 +4,4 @@ pyarrow
 PyYAML
 scikit-learn
 matplotlib
+imbalanced-learn
